@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 var piholeListRoot = "/etc/pihole"
@@ -33,7 +34,10 @@ func getAllListURLs() []string {
 	url_list := make([]string, 25)
 	file_scanner := bufio.NewScanner(full_url_list)
 	for file_scanner.Scan() {
-		url_list = append(url_list, file_scanner.Text())
+		this_url := file_scanner.Text()
+		if !strings.HasPrefix(this_url, "#") || len(this_url) == 0 { // if the URL isn't commented out or an empty line...
+			url_list = append(url_list, file_scanner.Text())
+		}
 	}
 
 	if err := file_scanner.Err(); err != nil {
