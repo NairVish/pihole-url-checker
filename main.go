@@ -147,6 +147,10 @@ func main() {
 	err := os.Chdir(piholeListRoot)
 	logFatalIfError(err)
 
+	if len(os.Args) != 2 {
+		logFatalIfError(fmt.Errorf("USAGE: %s <url_to_check>", os.Args[0]))
+	}
+
 	search_results := searchForURLInAllLists(os.Args[1])
 	fmt.Println(stringifyResults(search_results))
 }
