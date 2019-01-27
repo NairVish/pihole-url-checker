@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -29,6 +30,20 @@ type TotalResult struct {
 	QueryURL       string
 	ExactBLMatches []ListResult
 	ApprxBLMatches []ListResult
+}
+
+type BlacklistPriority struct {
+	Priority int
+	Filename string
+}
+
+// for sort.Sort
+type BLPriorities []BlacklistPriority
+
+func (blp BLPriorities) Len() int      { return len(blp) }
+func (blp BLPriorities) Swap(i, j int) { blp[i], blp[j] = blp[j], blp[i] }
+func (blp BLPriorities) Less(i, j int) bool {
+	return blp[i].Priority < blp[j].Priority
 }
 
 func logFatalIfError(err error) {
@@ -64,8 +79,8 @@ func getAllBlocklistFileNames() []string {
 	filenames, err := ioutil.ReadDir(piholeListRoot)
 	logFatalIfError(err)
 
-	filelist := make([]string, 0)
-	filelist = append(filelist, "black.list")
+	filelist := make(BLPriorities, 0)
+	filelist = append(filelist, BlacklistPriority{Priority: -1, Filename: "black.list"})
 	for _, f := range filenames {
 		fname := strings.TrimSpace(f.Name())
 
@@ -73,13 +88,22 @@ func getAllBlocklistFileNames() []string {
 			continue
 		}
 
-		if strings.HasPrefix(f.Name(), "list.") && strings.HasSuffix(fname, ".domains") {
-			filelist = append(filelist, fname)
+		if strings.HasPrefix(fname, "list.") && strings.HasSuffix(fname, ".domains") {
+			num, err := strconv.Atoi(strings.Split(fname, ".")[1])
+			logFatalIfError(err)
+			filelist = append(filelist, BlacklistPriority{Priority: num, Filename: fname})
 		}
 	}
-	sort.Strings(filelist)
 
-	return filelist
+	// using sort.Sort instead of sort.Slice b/c the default go version on Raspbian is 1.7.4 (< 1.8)
+	sort.Sort(filelist)
+
+	final_flist := make([]string, 0)
+	for _, bp := range filelist {
+		final_flist = append(final_flist, bp.Filename)
+	}
+
+	return final_flist
 }
 
 func searchForURLInAllLists(query string) *TotalResult {
@@ -98,7 +122,7 @@ func searchForURLInAllLists(query string) *TotalResult {
 		file_scanner := bufio.NewScanner(this_list_file)
 
 		// scan file
-		for file_scanner.Scan() {
+		for j := 0; file_scanner.Scan(); j += 1 {
 			this_entry := strings.TrimSpace(file_scanner.Text())
 			orig_entry := strings.TrimSpace(file_scanner.Text())
 			if strings.HasPrefix(this_entry, "#") || len(this_entry) == 0 {
@@ -111,9 +135,9 @@ func searchForURLInAllLists(query string) *TotalResult {
 			}
 
 			if query == this_entry {
-				exact_matches = append(exact_matches, ListResult{LineNumber: i, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
+				exact_matches = append(exact_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
 			} else if strings.Contains(this_entry, query) {
-				approx_matches = append(approx_matches, ListResult{LineNumber: i, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
+				approx_matches = append(approx_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
 			}
 		}
 
