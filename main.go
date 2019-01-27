@@ -21,11 +21,13 @@ type ListResult struct {
 	LineNumber   int
 	ListFileName string
 	ListURL      string
+	LineText     string
 }
 
 type TotalResult struct {
-	QueryURL     string
-	AllBLMatches []ListResult
+	QueryURL       string
+	ExactBLMatches []ListResult
+	ApprxBLMatches []ListResult
 }
 
 func logFatalIfError(err error) {
@@ -83,21 +85,68 @@ func searchForURLInAllLists(query string) *TotalResult {
 		log.Fatal(fmt.Printf("len(all_list_urls) [%d] != len(all_list_filenames) [%d]", len(all_list_urls), len(all_list_filenames)))
 	}
 
-	all_matches := make([]ListResult, 2)
+	exact_matches := make([]ListResult, 2)
+	approx_matches := make([]ListResult, 2)
 	for i := range all_list_urls {
 		this_list_filename := all_list_filenames[i]
 		this_list_file, err := os.Open(this_list_filename)
 		logFatalIfError(err)
+		file_scanner := bufio.NewScanner(this_list_file)
 
-		// TODO
+		// scan file
+		for file_scanner.Scan() {
+			this_entry := file_scanner.Text()
+			orig_entry := file_scanner.Text()
+			if strings.HasPrefix(this_entry, "#") || len(this_entry) == 0 {
+				continue
+			}
 
+			if ipAddrRegex.MatchString(this_entry) {
+				this_entry = ipAddrRegex.ReplaceAllLiteralString(this_entry, "")
+				this_entry = strings.TrimSpace(this_entry)
+			}
+
+			if query == this_entry {
+				exact_matches = append(exact_matches, ListResult{LineNumber: i, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
+			} else if strings.Contains(this_entry, query) {
+				approx_matches = append(approx_matches, ListResult{LineNumber: i, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
+			}
+		}
+
+		err = file_scanner.Err()
+		logFatalIfError(err)
 		this_list_file.Close()
 	}
 
-	return &TotalResult{QueryURL: query, AllBLMatches: all_matches}
+	return &TotalResult{QueryURL: query, ExactBLMatches: exact_matches, ApprxBLMatches: approx_matches}
+}
+
+func stringifyResults(result *TotalResult) string {
+	if len(result.ExactBLMatches) == 0 && len(result.ApprxBLMatches) == 0 {
+		return fmt.Sprintf("No results found in existing, active blocklists for %s.", result.QueryURL)
+	}
+
+	str := fmt.Sprintf("RESULTS:\nQuery: %s\n", result.QueryURL)
+	if len(result.ExactBLMatches) > 0 {
+		str += "\nEXACT MATCHES:\n"
+		for _, m := range result.ExactBLMatches {
+			str += fmt.Sprintf("%s (%s)\n\tLine %d\n\tEntry: %s\n", m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
+		}
+	}
+	if len(result.ApprxBLMatches) > 0 {
+		str += "\nAPPROXIMATE MATCHES (may not result in blocks of the query):\n"
+		for _, m := range result.ApprxBLMatches {
+			str += fmt.Sprintf("%s (%s)\n\tLine %d\n\tEntry: %s\n", m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
+		}
+	}
+
+	return str
 }
 
 func main() {
 	err := os.Chdir(piholeListRoot)
 	logFatalIfError(err)
+
+	search_results := searchForURLInAllLists(os.Args[1])
+	fmt.Println(stringifyResults(search_results))
 }
