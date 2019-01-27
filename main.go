@@ -130,17 +130,17 @@ func stringifyResults(result *TotalResult) string {
 		return fmt.Sprintf("No results found in existing, active blocklists for %s.", result.QueryURL)
 	}
 
-	str := fmt.Sprintf("RESULTS:\nQuery: %s\n", result.QueryURL)
+	str := fmt.Sprintf("\nFound %d exact matches and %d approximate matches.\n", len(result.ExactBLMatches), len(result.ApprxBLMatches))
 	if len(result.ExactBLMatches) > 0 {
 		str += "\nEXACT MATCHES:\n"
-		for _, m := range result.ExactBLMatches {
-			str += fmt.Sprintf("%s (%s)\n\tLine %d\n\tEntry: %s\n", m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
+		for i, m := range result.ExactBLMatches {
+			str += fmt.Sprintf("%02d) %s (%s)\n\tLine %d\n\tEntry: %s\n", i, m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
 		}
 	}
 	if len(result.ApprxBLMatches) > 0 {
-		str += "\nAPPROXIMATE MATCHES (may not result in blocks of the query):\n"
-		for _, m := range result.ApprxBLMatches {
-			str += fmt.Sprintf("%s (%s)\n\tLine %d\n\tEntry: %s\n", m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
+		str += "\nAPPROXIMATE MATCHES (may result in blocks of the query):\n"
+		for i, m := range result.ApprxBLMatches {
+			str += fmt.Sprintf("%02d) %s (%s)\n\tLine %d\n\tEntry: %s\n", i, m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
 		}
 	}
 
@@ -151,12 +151,11 @@ func main() {
 	err := os.Chdir(piholeListRoot)
 	logFatalIfError(err)
 
-	fmt.Println("Searching. This may take a while...")
-
 	if len(os.Args) != 2 {
 		logFatalIfError(fmt.Errorf("USAGE: %s <url_to_check>", os.Args[0]))
 	}
 
+	fmt.Printf("QUERY: %s\nSearching. This may take a while depending on the number and size of your blocklists...\n", os.Args[1])
 	search_results := searchForURLInAllLists(os.Args[1])
 	fmt.Println(stringifyResults(search_results))
 }
