@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strings"
 )
@@ -32,6 +33,7 @@ type TotalResult struct {
 
 func logFatalIfError(err error) {
 	if err != nil {
+		debug.PrintStack()
 		log.Fatal(err)
 	}
 }
@@ -42,13 +44,13 @@ func getAllListURLs() []string {
 	logFatalIfError(err)
 	defer full_url_list.Close()
 
-	url_list := make([]string, 25)
+	url_list := make([]string, 0)
 	url_list = append(url_list, "black.list")
 	file_scanner := bufio.NewScanner(full_url_list)
 	for file_scanner.Scan() {
-		this_url := file_scanner.Text()
-		if !strings.HasPrefix(this_url, "#") || len(this_url) > 0 { // if the URL isn't commented out or an empty line...
-			url_list = append(url_list, file_scanner.Text())
+		this_url := strings.TrimSpace(file_scanner.Text())
+		if !strings.HasPrefix(this_url, "#") && len(this_url) > 0 { // if the URL isn't commented out or an empty line...
+			url_list = append(url_list, this_url)
 		}
 	}
 
@@ -62,15 +64,17 @@ func getAllBlocklistFileNames() []string {
 	filenames, err := ioutil.ReadDir(piholeListRoot)
 	logFatalIfError(err)
 
-	filelist := make([]string, 25)
+	filelist := make([]string, 0)
 	filelist = append(filelist, "black.list")
 	for _, f := range filenames {
-		if f.IsDir() {
+		fname := strings.TrimSpace(f.Name())
+
+		if f.IsDir() || len(fname) == 0 {
 			continue
 		}
 
-		if strings.HasPrefix(f.Name(), "list.") && strings.HasSuffix(f.Name(), ".domains") {
-			filelist = append(filelist, f.Name())
+		if strings.HasPrefix(f.Name(), "list.") && strings.HasSuffix(fname, ".domains") {
+			filelist = append(filelist, fname)
 		}
 	}
 	sort.Strings(filelist)
@@ -85,8 +89,8 @@ func searchForURLInAllLists(query string) *TotalResult {
 		log.Fatal(fmt.Printf("len(all_list_urls) [%d] != len(all_list_filenames) [%d]", len(all_list_urls), len(all_list_filenames)))
 	}
 
-	exact_matches := make([]ListResult, 2)
-	approx_matches := make([]ListResult, 2)
+	exact_matches := make([]ListResult, 0)
+	approx_matches := make([]ListResult, 0)
 	for i := range all_list_urls {
 		this_list_filename := all_list_filenames[i]
 		this_list_file, err := os.Open(this_list_filename)
@@ -95,8 +99,8 @@ func searchForURLInAllLists(query string) *TotalResult {
 
 		// scan file
 		for file_scanner.Scan() {
-			this_entry := file_scanner.Text()
-			orig_entry := file_scanner.Text()
+			this_entry := strings.TrimSpace(file_scanner.Text())
+			orig_entry := strings.TrimSpace(file_scanner.Text())
 			if strings.HasPrefix(this_entry, "#") || len(this_entry) == 0 {
 				continue
 			}
@@ -146,6 +150,8 @@ func stringifyResults(result *TotalResult) string {
 func main() {
 	err := os.Chdir(piholeListRoot)
 	logFatalIfError(err)
+
+	fmt.Println("Searching. This may take a while...")
 
 	if len(os.Args) != 2 {
 		logFatalIfError(fmt.Errorf("USAGE: %s <url_to_check>", os.Args[0]))
