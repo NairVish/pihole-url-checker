@@ -4,13 +4,7 @@ import (
 	"fmt"
 	"github.com/akamensky/argparse"
 	"os"
-	"regexp"
 )
-
-var defaultPiholeListRoot = "/etc/pihole"
-var ipAddrRegex = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
-
-// TODO: Whitelists (whitelist.txt) and wildcard/regex blocking (regex.list).
 
 func main() {
 	// create new parser object
