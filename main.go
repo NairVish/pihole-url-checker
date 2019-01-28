@@ -21,9 +21,6 @@ func main() {
 	err := parser.Parse(os.Args)
 	logFatalIfError(err)
 
-	err = os.Chdir(*r)
-	logFatalIfError(err)
-
 	so := NewSearchObj(*r)
 	fmt.Printf("QUERY: %s\nSearching. This may take a while depending on the number and size of your blocklists...\n", *q)
 	so.SearchForURLInAllLists(*q)

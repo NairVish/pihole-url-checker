@@ -88,7 +88,7 @@ func (so *SearchObj) SearchForURLInAllLists(query string) {
 	exact_matches := make([]ListResult, 0)
 	approx_matches := make([]ListResult, 0)
 	for i := range so.blocklistURLs {
-		this_list_filename := so.blocklistFileNames[i]
+		this_list_filename := filepath.Join(so.piholeListRootFolder, so.blocklistFileNames[i])
 		this_list_file, err := os.Open(this_list_filename)
 		logFatalIfError(err)
 		file_scanner := bufio.NewScanner(this_list_file)
@@ -107,9 +107,9 @@ func (so *SearchObj) SearchForURLInAllLists(query string) {
 			}
 
 			if query == this_entry {
-				exact_matches = append(exact_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: so.blocklistURLs[i], LineText: orig_entry})
+				exact_matches = append(exact_matches, ListResult{LineNumber: j, ListFileName: so.blocklistFileNames[i], ListURL: so.blocklistURLs[i], LineText: orig_entry})
 			} else if strings.Contains(this_entry, query) {
-				approx_matches = append(approx_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: so.blocklistURLs[i], LineText: orig_entry})
+				approx_matches = append(approx_matches, ListResult{LineNumber: j, ListFileName: so.blocklistFileNames[i], ListURL: so.blocklistURLs[i], LineText: orig_entry})
 			}
 		}
 
