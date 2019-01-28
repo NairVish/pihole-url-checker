@@ -32,7 +32,7 @@ func NewSearchObj(piholeListRoot string) *SearchObj {
 }
 
 func (so *SearchObj) populateAllListURLs() {
-	list_urls_filename := filepath.Join(piholeListRoot, "adlists.list")
+	list_urls_filename := filepath.Join(so.piholeListRootFolder, "adlists.list")
 	full_url_list, err := os.Open(list_urls_filename)
 	logFatalIfError(err)
 	defer full_url_list.Close()
@@ -54,7 +54,7 @@ func (so *SearchObj) populateAllListURLs() {
 }
 
 func (so *SearchObj) populateAllBlocklistFileNames() {
-	filenames, err := ioutil.ReadDir(piholeListRoot)
+	filenames, err := ioutil.ReadDir(so.piholeListRootFolder)
 	logFatalIfError(err)
 
 	filelist := make(BLPriorities, 0)
