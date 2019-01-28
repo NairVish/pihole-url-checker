@@ -19,7 +19,9 @@ func main() {
 		logFatalIfError(fmt.Errorf("USAGE: %s <url_to_check>", os.Args[0]))
 	}
 
+	so := NewSearchObj(piholeListRoot)
+
 	fmt.Printf("QUERY: %s\nSearching. This may take a while depending on the number and size of your blocklists...\n", os.Args[1])
-	search_results := searchForURLInAllLists(os.Args[1])
-	fmt.Println(stringifyResults(search_results))
+	so.SearchForURLInAllLists(os.Args[1])
+	fmt.Println(so.StringifyResults())
 }

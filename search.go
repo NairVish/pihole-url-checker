@@ -12,7 +12,26 @@ import (
 	"strings"
 )
 
-func getAllListURLs() []string {
+type SearchObj struct {
+	piholeListRootFolder string
+	blocklistURLs        []string
+	blocklistFileNames   []string
+	FinalResult          *TotalResult
+}
+
+func NewSearchObj(piholeListRoot string) *SearchObj {
+	so := SearchObj{piholeListRootFolder: piholeListRoot}
+	so.populateAllListURLs()
+	so.populateAllBlocklistFileNames()
+
+	if len(so.blocklistURLs) != len(so.blocklistFileNames) {
+		log.Fatal(fmt.Printf("len(all_list_urls) [%d] != len(all_list_filenames) [%d]", len(so.blocklistURLs), len(so.blocklistFileNames)))
+	}
+
+	return &so
+}
+
+func (so *SearchObj) populateAllListURLs() {
 	list_urls_filename := filepath.Join(piholeListRoot, "adlists.list")
 	full_url_list, err := os.Open(list_urls_filename)
 	logFatalIfError(err)
@@ -31,10 +50,10 @@ func getAllListURLs() []string {
 	err = file_scanner.Err()
 	logFatalIfError(err)
 
-	return url_list
+	so.blocklistURLs = url_list
 }
 
-func getAllBlocklistFileNames() []string {
+func (so *SearchObj) populateAllBlocklistFileNames() {
 	filenames, err := ioutil.ReadDir(piholeListRoot)
 	logFatalIfError(err)
 
@@ -62,20 +81,14 @@ func getAllBlocklistFileNames() []string {
 		final_flist = append(final_flist, bp.Filename)
 	}
 
-	return final_flist
+	so.blocklistFileNames = final_flist
 }
 
-func searchForURLInAllLists(query string) *TotalResult {
-	all_list_urls := getAllListURLs()
-	all_list_filenames := getAllBlocklistFileNames()
-	if len(all_list_urls) != len(all_list_filenames) {
-		log.Fatal(fmt.Printf("len(all_list_urls) [%d] != len(all_list_filenames) [%d]", len(all_list_urls), len(all_list_filenames)))
-	}
-
+func (so *SearchObj) SearchForURLInAllLists(query string) {
 	exact_matches := make([]ListResult, 0)
 	approx_matches := make([]ListResult, 0)
-	for i := range all_list_urls {
-		this_list_filename := all_list_filenames[i]
+	for i := range so.blocklistURLs {
+		this_list_filename := so.blocklistFileNames[i]
 		this_list_file, err := os.Open(this_list_filename)
 		logFatalIfError(err)
 		file_scanner := bufio.NewScanner(this_list_file)
@@ -94,9 +107,9 @@ func searchForURLInAllLists(query string) *TotalResult {
 			}
 
 			if query == this_entry {
-				exact_matches = append(exact_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
+				exact_matches = append(exact_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: so.blocklistURLs[i], LineText: orig_entry})
 			} else if strings.Contains(this_entry, query) {
-				approx_matches = append(approx_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: all_list_urls[i], LineText: orig_entry})
+				approx_matches = append(approx_matches, ListResult{LineNumber: j, ListFileName: this_list_filename, ListURL: so.blocklistURLs[i], LineText: orig_entry})
 			}
 		}
 
@@ -105,24 +118,24 @@ func searchForURLInAllLists(query string) *TotalResult {
 		this_list_file.Close()
 	}
 
-	return &TotalResult{QueryURL: query, ExactBLMatches: exact_matches, ApprxBLMatches: approx_matches}
+	so.FinalResult = &TotalResult{QueryURL: query, ExactBLMatches: exact_matches, ApprxBLMatches: approx_matches}
 }
 
-func stringifyResults(result *TotalResult) string {
-	if len(result.ExactBLMatches) == 0 && len(result.ApprxBLMatches) == 0 {
+func (so *SearchObj) StringifyResults() string {
+	if len(so.FinalResult.ExactBLMatches) == 0 && len(so.FinalResult.ApprxBLMatches) == 0 {
 		return "No results found in existing, active blocklists."
 	}
 
-	str := fmt.Sprintf("\nFound %d exact matches and %d approximate matches.\n", len(result.ExactBLMatches), len(result.ApprxBLMatches))
-	if len(result.ExactBLMatches) > 0 {
+	str := fmt.Sprintf("\nFound %d exact matches and %d approximate matches.\n", len(so.FinalResult.ExactBLMatches), len(so.FinalResult.ApprxBLMatches))
+	if len(so.FinalResult.ExactBLMatches) > 0 {
 		str += "\nEXACT MATCHES:\n"
-		for i, m := range result.ExactBLMatches {
+		for i, m := range so.FinalResult.ExactBLMatches {
 			str += fmt.Sprintf("%02d) %s (%s)\n\tLine %d\n\tEntry: %s\n", i, m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
 		}
 	}
-	if len(result.ApprxBLMatches) > 0 {
+	if len(so.FinalResult.ApprxBLMatches) > 0 {
 		str += "\nAPPROXIMATE MATCHES (may potentially contribute to blocks of the query):\n"
-		for i, m := range result.ApprxBLMatches {
+		for i, m := range so.FinalResult.ApprxBLMatches {
 			str += fmt.Sprintf("%02d) %s (%s)\n\tLine %d\n\tEntry: %s\n", i, m.ListFileName, m.ListURL, m.LineNumber, m.LineText)
 		}
 	}
