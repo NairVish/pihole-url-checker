@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// main parses the command-line arguments and executes the search.
 func main() {
 	// create new parser object
 	parser := argparse.NewParser(os.Args[0], "Checks if the given URL/query is present in any (active) Pi-hole blocklists.")
