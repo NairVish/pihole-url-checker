@@ -26,10 +26,10 @@ Arguments:
   -r  --root   Pi-hole's root folder. Default: /etc/pihole
 ```
   
-To search for a URL (as an example):
+For example, to determine which blocklists `example.com` may be in (if there are any to begin with):
 
 ```
-pihole-url-checker -q google-analytics.com
+pihole-url-checker -q example.com
 ```
 
 The program will return any exact matches as well as approximate matches that may or may not result in a block.
@@ -37,13 +37,13 @@ The program will return any exact matches as well as approximate matches that ma
 Depending on the permissions of Pi-hole's root folder, you may need to run this as `sudo`:
 
 ```
-sudo pihole-url-checker -q google-analytics.com
+sudo pihole-url-checker -q example.com
 ```
 
 If the correct `GOROOT` is not part of the PATH for the root user, then you may need to call the executable using an absolute or relative path:
 
 ```
-sudo /home/username/go/bin/pihole-url-checker -q google-analytics.com
+sudo /home/username/go/bin/pihole-url-checker -q example.com
 ```
 
 ## TODOs
